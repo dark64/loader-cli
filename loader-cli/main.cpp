@@ -1,12 +1,12 @@
+#pragma warning( disable : 6387 )
+
+#define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <Windows.h>
 #include <stdio.h>
 #include <string>
 #include <TlHelp32.h>
-
-#define RT_ERROR   1
-#define RT_SUCCESS 0
 
 #define LOG(...) printf_s(__VA_ARGS__)
 
@@ -40,22 +40,35 @@ HANDLE GetProcessHandle(const char* pName)
     return hProcess;
 }
 
-bool FileExists(const std::string& name) 
+LPCSTR GetFileName(LPCSTR base)
 {
-    if (FILE *file = fopen(name.c_str(), "r")) 
+    LPCSTR filename = base;
+    for (int i = strlen(base) - 1; i >= 0; i--)
+    {
+        if (base[i] == '\\') {
+            filename = base + i + 1;
+            break;
+        }
+    }
+    return filename;
+}
+
+BOOL FileExists(LPCSTR filePath) 
+{
+    if (FILE *file = fopen(filePath, "r"))
     {
         fclose(file);
-        return true;
+        return TRUE;
     }
-    return false;
+    return FALSE;
 }
 
 int main(int argc, char* argv[])
 {
-    if (argc <= 2) 
+    if (argc < 3) 
     {
-        LOG("Usage: %s [DLL] [PROCESS]", argv[0]);
-        return RT_ERROR;
+        LOG("Usage: %s [DLL] [PROCESS]", GetFileName(argv[0]));
+        return EXIT_FAILURE;
     }
 
     CHAR path[MAX_PATH];
@@ -63,8 +76,8 @@ int main(int argc, char* argv[])
 
     if (!FileExists(path))
     {
-        LOG("Could not find %s\n", path); getchar();
-        return RT_ERROR;
+        LOG("Could not find %s\n", path);
+        return EXIT_FAILURE;
     }
 
     LOG("Searching for %s...\n", argv[2]);
@@ -77,7 +90,7 @@ int main(int argc, char* argv[])
     } 
     while (!hProcess);
 
-    LOG("Found %s (at: 0x%x)\n", argv[2], hProcess);
+    LOG("Found %s (at: 0x%x)\n", argv[2], (DWORD)hProcess);
     LPVOID pBuffer = VirtualAllocEx(hProcess, 0, length, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     WriteProcessMemory(hProcess, pBuffer, (LPVOID)path, length, 0);
 
@@ -85,8 +98,8 @@ int main(int argc, char* argv[])
     if (!CreateRemoteThread(hProcess, 0, 0, (LPTHREAD_START_ROUTINE)hLoadLibrary, pBuffer, 0, 0))
     {
         LOG("Could not create remote thread in target process (%d)\n", GetLastError());
-        getchar();
+        return EXIT_FAILURE;
     }
 
-    return RT_SUCCESS;
+    return EXIT_SUCCESS;
 }
