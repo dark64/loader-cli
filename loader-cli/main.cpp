@@ -98,8 +98,10 @@ int main(int argc, char* argv[])
     if (!CreateRemoteThread(hProcess, 0, 0, (LPTHREAD_START_ROUTINE)hLoadLibrary, pBuffer, 0, 0))
     {
         LOG("Could not create remote thread in target process (%d)\n", GetLastError());
+        CloseHandle(hProcess);
         return EXIT_FAILURE;
     }
 
+    CloseHandle(hProcess);
     return EXIT_SUCCESS;
 }
